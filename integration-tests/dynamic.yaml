@@ -1,0 +1,23 @@
+http:
+  routers:
+    integration:
+      entryPoints:
+        - web
+      rule: PathPrefix(`/`)
+      middlewares:
+        - map-status
+      service: backend
+
+  middlewares:
+    map-status:
+      plugin:
+        mapstatus:
+          from: "400-499,503"
+          to: "200"
+          debug: true
+
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: http://backend:80

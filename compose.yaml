@@ -1,0 +1,18 @@
+services:
+  traefik:
+    image: traefik:v3
+    command:
+      - --configFile=/etc/traefik/traefik.yaml
+    ports:
+      - "127.0.0.1:8080:80"
+    volumes:
+      - .:/plugins-local/src/github.com/SneaksAndData/traefik-map-status-code:ro
+      - ./integration-tests/traefik.yaml:/etc/traefik/traefik.yaml:ro
+      - ./integration-tests/dynamic.yaml:/etc/traefik/dynamic.yaml:ro
+    depends_on:
+      - backend
+
+  backend:
+    image: nginx:alpine
+    ports:
+      - "127.0.0.1:8081:80"

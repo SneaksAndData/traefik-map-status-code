@@ -2,12 +2,16 @@ package mapstatus
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 )
+
+// CreateConfig creates a new plugin configuration. This an entry point expected by Traefik.
+func CreateConfig() *Config {
+	return &Config{}
+}
 
 // Config the plugin configuration.
 type Config struct {
@@ -16,26 +20,34 @@ type Config struct {
 
 	// To is the HTTP status code to map to. Should be a single valid HTTP status code.
 	To string `json:"to"`
+
+	// Debug enables mapping and response status logs.
+	Debug bool `json:"debug"`
 }
 
-type MapStatusCode struct {
+type Plugin struct {
 	next       http.Handler
 	inputCodes map[int]int
 	name       string
+	debug      bool
 }
 
-func NewMapStatusCode(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
+// New creates a new plugin instance. This an entry point expected by Traefik.
+func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	target, err := strconv.Atoi(strings.TrimSpace(config.To))
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("target must be an integer, but was: %s", config.To))
+		return nil, fmt.Errorf("target must be an integer, but was: %s", config.To)
 	}
 
 	inputCodes := buildStatusCodeMap(config.From, target)
-	return &MapStatusCode{next: next, inputCodes: inputCodes, name: name}, nil
+	if config.Debug {
+		fmt.Printf("[mapstatus] name=%s inputCodes=%v\n", name, inputCodes)
+	}
+	return &Plugin{next: next, inputCodes: inputCodes, name: name, debug: config.Debug}, nil
 }
 
-func (p *MapStatusCode) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	nrw := NewResponseWriterInterceptor(p.inputCodes, rw)
+func (p *Plugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	nrw := newResponseWriterInterceptor(p.inputCodes, rw, p.debug)
 	p.next.ServeHTTP(nrw, req)
 }
 

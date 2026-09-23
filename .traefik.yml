@@ -1,0 +1,8 @@
+displayName: Map Status Code
+type: middleware
+import: github.com/SneaksAndData/traefik-map-status-code
+summary: Map upstream HTTP status codes
+basePkg: mapstatus
+testData:
+  from: "404"
+  to: "200"
