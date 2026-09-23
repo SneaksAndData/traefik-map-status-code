@@ -1,0 +1,81 @@
+name: Run tests with coverage
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+
+jobs:
+  validate_commit:
+    name: Validate commit
+    runs-on: ubuntu-latest
+    if: ${{ github.ref != 'refs/heads/main' }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6.4.0
+        with:
+          go-version: '1.26.*'
+
+#      - uses: extractions/setup-just@v4
+
+      - name: Check Format
+        run: gofmt -d ./
+
+      - name: Verify dependencies
+        run: go mod verify
+
+      - name: Install dependencies
+        run: go mod vendor
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+
+#      - name: Run unit tests
+#        run: go test -v ./... -coverprofile=./cover.out -covermode=atomic -coverpkg=./... -short
+
+#      - name: Check test coverage
+#        id: coverage
+#        uses: vladopajic/go-test-coverage@v2
+#        continue-on-error: true # Should fail after coverage comment is posted
+#        with:
+#          config: .testcoverage.yaml
+
+      - name: Post coverage report
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          comment-tag: coverage-report
+          message: |
+            go-test-coverage report:
+            ```${{ fromJSON(steps.coverage.outputs.report) }}```
+
+      - name: Finally check coverage
+        if: false # Skip for now
+        # if: steps.coverage.outcome == 'failure'
+        shell: bash
+        run: echo "coverage check failed" && exit 1
+
+#      - name: Setup integration tests
+#        run: just up
+#
+#      - name: Run integration tests
+#        run: go test -v ./tests/... -count=1 -kubeconfig-cmd "kind get kubeconfig" -timeout 5m -parallel 15
+#
+#      - name: Get logs from application pods
+#        if: always()
+#        run: |
+#          kubectl describe pods --namespace default || true
