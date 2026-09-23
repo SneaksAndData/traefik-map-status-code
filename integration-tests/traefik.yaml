@@ -1,0 +1,17 @@
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yaml
+
+experimental:
+  localPlugins:
+    mapstatus:
+      moduleName: github.com/SneaksAndData/traefik-map-status-code
+
+log:
+  level: DEBUG
+
+accessLog: {}
