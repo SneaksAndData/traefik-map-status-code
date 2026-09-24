@@ -113,7 +113,11 @@ func TestPluginResponseBody(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
 			response := recorder.Result()
-			defer response.Body.Close()
+			defer func() {
+				if err := response.Body.Close(); err != nil {
+					t.Errorf("closing response body: %v", err)
+				}
+			}()
 			if response.StatusCode != tc.wantStatus {
 				t.Errorf("status = %d, want %d", response.StatusCode, tc.wantStatus)
 			}
@@ -164,7 +168,11 @@ func TestPluginBodyFraming(t *testing.T) {
 			recorder := httptest.NewRecorder()
 			handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
 			response := recorder.Result()
-			defer response.Body.Close()
+			defer func() {
+				if err := response.Body.Close(); err != nil {
+					t.Errorf("closing response body: %v", err)
+				}
+			}()
 			if tc.drop {
 				for _, name := range []string{"Content-Length", "Transfer-Encoding", "Trailer", "X-Checksum", "X-Other", "X-Extra", http.TrailerPrefix + "X-Early", http.TrailerPrefix + "X-Late"} {
 					if values, ok := response.Header[name]; ok {
@@ -273,7 +281,11 @@ func TestPluginRemovedBodyOverHTTP(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer response.Body.Close()
+			defer func() {
+				if err := response.Body.Close(); err != nil {
+					t.Errorf("closing response body: %v", err)
+				}
+			}()
 			body, err := io.ReadAll(response.Body)
 			if err != nil {
 				t.Fatalf("reading removed body: %v", err)
