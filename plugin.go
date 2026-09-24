@@ -10,7 +10,7 @@ import (
 
 // CreateConfig creates a new plugin configuration. This an entry point expected by Traefik.
 func CreateConfig() *Config {
-	return &Config{}
+	return &Config{RemoveBody: true}
 }
 
 // Config the plugin configuration.
@@ -23,6 +23,9 @@ type Config struct {
 
 	// Debug enables mapping and response status logs.
 	Debug bool `json:"debug"`
+
+	// RemoveBody removes the body only when the response status matches a mapping.
+	RemoveBody bool `json:"removeBody"`
 }
 
 type Plugin struct {
@@ -30,6 +33,7 @@ type Plugin struct {
 	inputCodes map[int]int
 	name       string
 	debug      bool
+	removeBody bool
 }
 
 // New creates a new plugin instance. This an entry point expected by Traefik.
@@ -43,12 +47,16 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	if config.Debug {
 		fmt.Printf("[mapstatus] name=%s inputCodes=%v\n", name, inputCodes)
 	}
-	return &Plugin{next: next, inputCodes: inputCodes, name: name, debug: config.Debug}, nil
+	return &Plugin{next: next, inputCodes: inputCodes, name: name, debug: config.Debug, removeBody: config.RemoveBody}, nil
 }
 
 func (p *Plugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	nrw := newResponseWriterInterceptor(p.inputCodes, rw, p.debug)
+	nrw := newResponseWriterInterceptor(p.inputCodes, rw, p.debug, p.removeBody)
 	p.next.ServeHTTP(nrw, req)
+	if nrw.dropBody {
+		// TrailerPrefix fields can be added after the final body write.
+		nrw.removeBodyHeaders()
+	}
 }
 
 func buildStatusCodeMap(from string, target int) map[int]int {
